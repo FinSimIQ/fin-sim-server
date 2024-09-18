@@ -14,4 +14,4 @@ mongoose
     console.log("Error connecting to MongoDB", err);
   });
 
-module.exports = {};
+require("./DummyData.model");
