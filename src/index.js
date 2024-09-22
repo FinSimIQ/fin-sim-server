@@ -1,7 +1,7 @@
 const env = require("dotenv");
 env.config();
 
-require("./models/db");
+require("./schemas/db");
 
 // import libraries & functions
 const express = require("express");
@@ -20,15 +20,17 @@ app.use(express.urlencoded({ extended: true }));
 
 // import controllers
 const dummyDataController = require("./controllers/DummyData.controller");
+const userRoutes = require("./routes/User.routes");
 
 // adding the controller
 app.use("/api/DummyData", dummyDataController);
+app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+	res.send("Hello World!");
 });
 
 const port = process?.env?.PORT || 8081;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+	console.log(`Server running on port ${port}`);
 });

@@ -1,17 +1,11 @@
-// user model
+const userSchema = require("../schemas/User.schema");
 
-// import mongoose
-const mongoose = require("mongoose");
+const getAllUsers = async () => {
+	return await userSchema.find();
+};
 
-// define user model schema
-const userSchema = new mongoose.Schema({
-  fullName: { type: String, required: true },
-  email: { type: String, required: true },
-  password: { type: String, required: true },
-  totalPoints: { type: Number, required: false, default: 0, min: 0 },
-  totalQuizzes: { type: Number, required: false, default: 0, min: 0 },
-  quizzesCompleted: [{ type: mongoose.Schema.Types.ObjectId, ref: "Quiz" }],
-});
+const getUserById = async ({ id }) => {
+	return await userSchema.findById(id);
+};
 
-// export user model
-mongoose.model("User", userSchema);
+module.exports = { getAllUsers, getUserById };
