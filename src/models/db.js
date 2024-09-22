@@ -15,3 +15,6 @@ mongoose
   });
 
 require("./DummyData.model");
+require("./User.model");
+require("./Quiz.model");
+require("./Question.model");

@@ -1,4 +1,3 @@
-
 const env = require("dotenv");
 env.config();
 
@@ -7,12 +6,12 @@ require("./models/db");
 // import libraries & functions
 const express = require("express");
 const cors = require("cors");
-const connectDB = require("./config/db")
+// const connectDB = require("./config/db");
 
 const app = express();
 
 // connect to MongoDB
-connectDB();
+// connectDB();
 
 app.use(cors({ origin: "*" }));
 
