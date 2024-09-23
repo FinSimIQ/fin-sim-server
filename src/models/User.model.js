@@ -1,11 +1,33 @@
-const userSchema = require("../schemas/User.schema");
+const User = require("../schemas/User.schema");
 
 const getAllUsers = async () => {
-	return await userSchema.find();
+	return await User.find({}).exec();
 };
 
-const getUserById = async ({ id }) => {
-	return await userSchema.findById(id);
+const getUserByEmail = async (email) => {
+	return await User.find({ email: new RegExp(email, "i") }).exec();
 };
 
-module.exports = { getAllUsers, getUserById };
+const getUserByName = async (name) => {
+	return await User.find({ fullName: new RegExp(name, "i") }).exec();
+};
+
+const createUser = async (fullName, email, password) => {
+	return await User.create({
+		fullName,
+		email,
+		password,
+	});
+};
+
+const deleteUser = async (id) => {
+	return await User.deleteOne({ _id: id }).exec();
+};
+
+module.exports = {
+	getAllUsers,
+	getUserByEmail,
+	getUserByName,
+	createUser,
+	deleteUser,
+};
