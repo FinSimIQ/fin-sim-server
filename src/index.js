@@ -21,10 +21,12 @@ app.use(express.urlencoded({ extended: true }));
 // import controllers
 const dummyDataController = require("./controllers/DummyData.controller");
 const userRoutes = require("./routes/User.routes");
+const leaderboardRoutes = require('./routes/Leaderboard.routes');
 
 // adding the controller
 app.use("/api/DummyData", dummyDataController);
 app.use("/api/users", userRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 app.get("/", (req, res) => {
 	res.send("Hello World!");
