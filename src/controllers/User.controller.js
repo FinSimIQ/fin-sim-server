@@ -41,6 +41,25 @@ const createUser = async (req, res) => {
 	}
 };
 
+const loginUser = async (req, res) => {
+	try {
+		const { email, password } = req.body;
+		const user = await userModel.getUserByEmail(email);
+		if (user.length == 1) {
+			const result = await bcrypt.compare(password, user[0].password);
+			if (result) {
+				res.json(user);
+			} else {
+				res.json({ message: 'Invalid credentials' });
+			}
+		} else {
+			res.json({ message: "Account not found" });
+		}
+	} catch (e) {
+		res.json({ message: "failure", reason: e.message });
+	}
+}
+
 const deleteUser = async (req, res) => {
 	try {
 		const { id } = req.params;
@@ -56,5 +75,6 @@ module.exports = {
 	getUserByEmail,
 	getUserByName,
 	createUser,
+	loginUser,
 	deleteUser,
 };
