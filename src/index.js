@@ -28,7 +28,6 @@ const quizRoutes = require("./routes/quizRoutes.routes");
 app.use("/api/DummyData", dummyDataController);
 app.use("/api/users", userRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
-
 app.use("/api/quiz", quizRoutes);
 
 app.get("/", (req, res) => {

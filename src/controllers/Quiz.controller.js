@@ -1,12 +1,10 @@
 const OpenAI = require("openai");
 const openai = new OpenAI();
-const axios = require("axios");
+require("dotenv").config();
 
-const generateQuiz = async (req, res) => {
-  const { topic } = req.body;
-  console.log(req, res);
+const generateQuiz = async (topic) => {
   if (!topic) {
-    return res.status(400).json({ error: "Please provide a topic." });
+    throw new Error("Please provide a topic.");
   }
 
   try {
@@ -36,17 +34,14 @@ const generateQuiz = async (req, res) => {
       },
       {
         headers: {
-          Authorization: `Bearer OPEN_API_KEY`,
+          Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`,
         },
       }
     );
 
-    const quiz = response.data.choices[0].message.content;
-
-    console.log("Generated Quiz:", quiz);
+    const quiz = response.choices[0].message.content;
   } catch (error) {
     console.error("Error with OpenAI API:", error);
-    res.status(500).json({ error: "Failed to generate quiz questions" });
   }
 };
 
