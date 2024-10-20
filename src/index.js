@@ -23,14 +23,13 @@ const dummyDataController = require("./controllers/DummyData.controller");
 const userRoutes = require("./routes/User.routes");
 
 const leaderboardRoutes = require("./routes/Leaderboard.routes");
-const quizRoutes = require("./routes/quizRoutes.routes");
+const quizRoutes = require("./routes/Quiz.routes");
 
 // adding the controller
 app.use("/api/DummyData", dummyDataController);
 app.use("/api/users", userRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/quiz', quizRoutes);
-
+app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/quiz", quizRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
