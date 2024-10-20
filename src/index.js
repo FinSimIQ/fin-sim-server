@@ -21,9 +21,9 @@ app.use(express.urlencoded({ extended: true }));
 // import controllers
 const dummyDataController = require("./controllers/DummyData.controller");
 const userRoutes = require("./routes/User.routes");
-const leaderboardRoutes = require('./routes/Leaderboard.routes');
-const quizRoutes = require('./routes/Quiz.routes')
 
+const leaderboardRoutes = require("./routes/Leaderboard.routes");
+const quizRoutes = require("./routes/quizRoutes.routes");
 
 // adding the controller
 app.use("/api/DummyData", dummyDataController);
@@ -33,10 +33,10 @@ app.use('/api/quiz', quizRoutes);
 
 
 app.get("/", (req, res) => {
-	res.send("Hello World!");
+  res.send("Hello World!");
 });
 
 const port = process?.env?.PORT || 8081;
 app.listen(port, () => {
-	console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
