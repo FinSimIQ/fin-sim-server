@@ -33,6 +33,10 @@ const getUserByName = async (req, res) => {
 const createUser = async (req, res) => {
 	try {
 		const { fullName, email, password } = req.body;
+		const existingUser = await userModel.getUserByEmail(email);
+		if (existingUser.length > 0) {
+		return res.status(400).json({ message: "Email already in use" });
+		}
 		const hashedPassword = await bcrypt.hash(password, 10);
 		const user = await userModel.createUser(fullName, email, hashedPassword);
 		res.json(user);
