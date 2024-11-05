@@ -6,4 +6,6 @@ router.post("/create", QuizController.createQuizWithQuestions);
 
 router.post("/generate", QuizController.generateQuiz);
 
+router.post("/complete", QuizController.completeQuiz);
+
 module.exports = router;

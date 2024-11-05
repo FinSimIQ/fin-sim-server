@@ -74,6 +74,14 @@ const deleteUser = async (req, res) => {
 	}
 };
 
+const updateUserPoints = async (email, updates) => {
+	try {
+	  return await userModel.findOneAndUpdate({ email }, updates, { new: true });
+	} catch (error) {
+	  throw new Error("Failed to update user points: " + error.message);
+	}
+  };
+
 module.exports = {
 	getAllUsers,
 	getUserByEmail,
@@ -81,4 +89,5 @@ module.exports = {
 	createUser,
 	loginUser,
 	deleteUser,
+	updateUserPoints,
 };

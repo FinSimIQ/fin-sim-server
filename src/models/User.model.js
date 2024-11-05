@@ -24,10 +24,16 @@ const deleteUser = async (id) => {
 	return await User.deleteOne({ _id: id }).exec();
 };
 
+const updateUserPoints = async (email, updates) => {
+	return await User.findOneAndUpdate({ email }, updates, { new: true }).exec();
+};
+
+
 module.exports = {
 	getAllUsers,
 	getUserByEmail,
 	getUserByName,
 	createUser,
 	deleteUser,
+	updateUserPoints,
 };
