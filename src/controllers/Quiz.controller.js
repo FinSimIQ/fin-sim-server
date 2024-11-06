@@ -2,6 +2,28 @@ const mongoose = require("mongoose");
 const Quiz = mongoose.model("Quiz");
 const Question = mongoose.model("Question");
 const helper = require("./LLM.controller");
+const User = require("../models/User.model");
+const { updateUserPoints } = require("../models/User.model");
+
+const pointsTable = {
+  regularQuiz: [
+    { minScore: 0.9, points: 150 },
+    { minScore: 0.7, points: 100 },
+    { minScore: 0.5, points: 50 },
+  ],
+  weeklyChallenge: [
+    { minScore: 0.9, points: 300 },
+    { minScore: 0.7, points: 200 },
+    { minScore: 0.5, points: 100 },
+  ],
+  courseCompletion: [
+    { minScore: 0.9, points: 500 },
+    { minScore: 0.7, points: 350 },
+    { minScore: 0.5, points: 200 },
+  ],
+};
+
+
 
 const OpenAI = require("openai");
 const openai = new OpenAI();
@@ -164,4 +186,62 @@ const generateQuiz = async (topic) => {
   }
 };
 
-module.exports = { generateQuiz, createQuizWithQuestions, createCustomQuiz };
+const assignPoints = async (userId, quizType, scoreObtained, totalScore) => {
+  try {
+    const percentage = scoreObtained / totalScore;
+    const quizConfig = pointsTable[quizType];
+
+    if (!quizConfig) {
+      throw new Error("Invalid quiz type");
+    }
+
+    // eetermine points based on the percentage score
+    let points = 0;
+    for (const tier of quizConfig) {
+      if (percentage >= tier.minScore) {
+        points = tier.points;
+        break; // qssign the highest points tier that the score meets
+      }
+    }
+
+    if (points > 0) {
+      // use the method to get the user
+      const user = await User.getUserByEmail(userId);
+      if (!user || user.length === 0) throw new Error("User not found");
+
+      // Uupdate user's total points and total quizzes
+      const updatedUser = await updateUserPoints(userId, {
+        totalPoints: user[0].totalPoints + points,
+        totalQuizzes: user[0].totalQuizzes + 1,
+      });
+
+      return { success: true, pointsAwarded: points };
+    }
+
+    return { success: false, message: "Score did not meet any tier requirements" };
+  } catch (error) {
+    console.error("Error assigning points:", error);
+    return { success: false, message: "An error occurred" };
+  }
+};
+
+
+const completeQuiz = async (req, res) => {
+  const { userId, quizType, scoreObtained, totalScore } = req.body;
+
+  try {
+    const result = await assignPoints(userId, quizType, scoreObtained, totalScore);
+
+    if (result.success) {
+      return res.status(200).json({ message: "Points awarded", points: result.pointsAwarded });
+    } else {
+      return res.status(400).json({ message: result.message });
+    }
+  } catch (error) {
+    console.error("Error completing quiz:", error);
+    return res.status(500).json({ message: "Error completing quiz", error: error.message });
+  }
+};
+
+
+module.exports = { generateQuiz, createQuizWithQuestions, completeQuiz };
