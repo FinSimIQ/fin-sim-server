@@ -29,6 +29,34 @@ const OpenAI = require("openai");
 const openai = new OpenAI();
 require("dotenv").config();
 
+// Create a custom quiz using provided name, difficulty, questions, and answers
+const createCustomQuiz = async (req, res) => {
+  const { name, difficulty, questions, answers } = req.body;
+
+  // Validate input data
+  if (!name || !difficulty || !questions || !answers || questions.length !== answers.length) {
+    return res.status(400).json({ message: "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length." });
+  }
+
+  // Create question-answer pairs
+  const questionAnswerPairs = questions.map((question, index) => ({
+    question,
+    answer: answers[index]
+  }));
+
+  try {
+    // Save the custom quiz to the database
+    const newQuiz = new Quiz({ name, difficulty, questionAnswerPairs });
+    const savedQuiz = await newQuiz.save();
+    
+    res.status(201).json({ message: "Quiz created successfully", quiz: savedQuiz });
+  } catch (error) {
+    console.error("Error creating quiz:", error);
+    res.status(500).json({ message: "Error creating quiz", error: error.message });
+  }
+};
+
+// Existing function: createQuizWithQuestions
 const createQuizWithQuestions = async (req, res) => {
   try {
     // get finance events from gpt
@@ -48,13 +76,11 @@ const createQuizWithQuestions = async (req, res) => {
       return line.trim().match(/^\d+\./);
     });
 
-    console.log("Filtered Events:", eventList);
     const questionIds = [];
     const questions = [];
 
     // loop over each event and generate questions and descriptions
     for (const event of eventList) {
-      // generate a question and correct answer for each event
       const questionPrompt = `Create a quiz question from the following event: ${event}.
             Please respond with the following format:
             - Question: <The quiz question>
@@ -63,12 +89,11 @@ const createQuizWithQuestions = async (req, res) => {
             B) <Option B>
             C) <Option C>
             D) <Option D>
-            - Correct Answer: <The correct answer> (e.g., B) To curb inflation)`;
+            - Correct Answer: <The correct answer>`;
       const questionResponse = await helper(questionPrompt);
-      const descriptionPrompt = `Provide a breif description of the event: ${event}, focusing on the key finance-related impacts and outcomes. Make sure it's no more than three lines.`;
+      const descriptionPrompt = `Provide a brief description of the event: ${event}`;
       const descriptionResponse = await helper(descriptionPrompt);
 
-      // extract the structured response
       const questionMatch = questionResponse.match(/Question:\s*(.*)/);
       const correctAnswerMatch = questionResponse.match(
         /Correct Answer:\s*(.*)/
@@ -78,9 +103,7 @@ const createQuizWithQuestions = async (req, res) => {
       );
 
       if (!questionMatch || !correctAnswerMatch || !optionsMatch) {
-        throw new Error(
-          "Invalid question or answer format from the OpenAI API"
-        );
+        throw new Error("Invalid question or answer format from OpenAI");
       }
 
       const question = questionMatch[1].trim();
@@ -92,11 +115,10 @@ const createQuizWithQuestions = async (req, res) => {
         `D) ${optionsMatch[4].trim()}`,
       ];
 
-      // create a new question entry in the database
       const newQuestion = new Question({
-        question: question,
+        question,
         answers: options,
-        correctAnswer: correctAnswer,
+        correctAnswer,
         description: descriptionResponse,
       });
 
@@ -105,11 +127,10 @@ const createQuizWithQuestions = async (req, res) => {
       questionIds.push(newQuestion._id);
     }
 
-    // create a new quiz using the questions generated
     const newQuiz = new Quiz({
       title: "Weekly Finance Quiz!",
       description: "A quiz on recent finance events",
-      questions: questions,
+      questions,
       events: eventList,
     });
 
@@ -117,12 +138,11 @@ const createQuizWithQuestions = async (req, res) => {
     res.json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
-    res
-      .status(500)
-      .json({ message: "Error creating quiz", error: error.message });
+    res.status(500).json({ message: "Error creating quiz", error: error.message });
   }
 };
 
+// Existing function: generateQuiz
 const generateQuiz = async (topic) => {
   if (!topic) {
     throw new Error("Please provide a topic.");
@@ -138,7 +158,7 @@ const generateQuiz = async (topic) => {
             content: [
               {
                 type: "text",
-                text: "You are a expert professor on economics and finance that creates quizzes on various finance topics.",
+                text: "You are an expert professor on economics and finance that creates quizzes on various finance topics.",
               },
             ],
           },
