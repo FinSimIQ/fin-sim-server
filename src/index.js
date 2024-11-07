@@ -32,10 +32,17 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/quiz", quizRoutes);
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+	res.send("Hello World!");
 });
 
 const port = process?.env?.PORT || 8081;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+	console.log(`Server running on port ${port}`);
+});
+
+const cron = require("node-cron");
+const { createQuizWithQuestions } = require("./controllers/Quiz.controller");
+cron.schedule("59 23 * * Sun", createQuizWithQuestions, {
+	scheduled: true,
+	timezone: "Europe/London",
 });
