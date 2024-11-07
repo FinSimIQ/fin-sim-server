@@ -41,8 +41,8 @@ app.listen(port, () => {
 });
 
 const cron = require("node-cron");
-const { createQuizWithQuestions } = require("./controllers/Quiz.controller");
-cron.schedule("59 23 * * Sun", createQuizWithQuestions, {
+const { generateWeeklyQuiz } = require("./controllers/Quiz.controller");
+cron.schedule("59 23 * * Sun", generateWeeklyQuiz, {
 	scheduled: true,
 	timezone: "Europe/London",
 });
