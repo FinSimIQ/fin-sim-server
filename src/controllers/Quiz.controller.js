@@ -175,12 +175,13 @@ const generateQuiz = async (topic) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
       }
     );
 
     const quiz = response.choices[0].message.content;
+    console.log(quiz)
   } catch (error) {
     console.error("Error with OpenAI API:", error);
   }
