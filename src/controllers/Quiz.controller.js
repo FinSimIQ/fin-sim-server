@@ -23,8 +23,6 @@ const pointsTable = {
   ],
 };
 
-
-
 const OpenAI = require("openai");
 const openai = new OpenAI();
 require("dotenv").config();
@@ -34,25 +32,40 @@ const createCustomQuiz = async (req, res) => {
   const { name, difficulty, questions, answers } = req.body;
 
   // Validate input data
-  if (!name || !difficulty || !questions || !answers || questions.length !== answers.length) {
-    return res.status(400).json({ message: "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length." });
+  if (
+    !name ||
+    !difficulty ||
+    !questions ||
+    !answers ||
+    questions.length !== answers.length
+  ) {
+    return res
+      .status(400)
+      .json({
+        message:
+          "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length.",
+      });
   }
 
   // Create question-answer pairs
   const questionAnswerPairs = questions.map((question, index) => ({
     question,
-    answer: answers[index]
+    answer: answers[index],
   }));
 
   try {
     // Save the custom quiz to the database
     const newQuiz = new Quiz({ name, difficulty, questionAnswerPairs });
     const savedQuiz = await newQuiz.save();
-    
-    res.status(201).json({ message: "Quiz created successfully", quiz: savedQuiz });
+
+    res
+      .status(201)
+      .json({ message: "Quiz created successfully", quiz: savedQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
-    res.status(500).json({ message: "Error creating quiz", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error creating quiz", error: error.message });
   }
 };
 
@@ -138,7 +151,9 @@ const createQuizWithQuestions = async (req, res) => {
     res.json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
-    res.status(500).json({ message: "Error creating quiz", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error creating quiz", error: error.message });
   }
 };
 
@@ -218,30 +233,72 @@ const assignPoints = async (userId, quizType, scoreObtained, totalScore) => {
       return { success: true, pointsAwarded: points };
     }
 
-    return { success: false, message: "Score did not meet any tier requirements" };
+    return {
+      success: false,
+      message: "Score did not meet any tier requirements",
+    };
   } catch (error) {
     console.error("Error assigning points:", error);
     return { success: false, message: "An error occurred" };
   }
 };
 
-
 const completeQuiz = async (req, res) => {
   const { userId, quizType, scoreObtained, totalScore } = req.body;
 
   try {
-    const result = await assignPoints(userId, quizType, scoreObtained, totalScore);
+    const result = await assignPoints(
+      userId,
+      quizType,
+      scoreObtained,
+      totalScore
+    );
 
     if (result.success) {
-      return res.status(200).json({ message: "Points awarded", points: result.pointsAwarded });
+      return res
+        .status(200)
+        .json({ message: "Points awarded", points: result.pointsAwarded });
     } else {
       return res.status(400).json({ message: result.message });
     }
   } catch (error) {
     console.error("Error completing quiz:", error);
-    return res.status(500).json({ message: "Error completing quiz", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Error completing quiz", error: error.message });
   }
 };
 
+const listQuizzesBySubject = async (req, res) => {
+  const { subject } = req.params;
+  try {
+    const quizzes = await Quiz.find({ subject }).populate("questions");
+    if (quizzes.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No quizzes found for this subject" });
+    }
+    res.status(200).json(quizzes);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching quizzes by subject" });
+  }
+};
 
-module.exports = { generateQuiz, createQuizWithQuestions, completeQuiz };
+const listAllQuizzes = async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().populate("questions");
+    res.status(200).json(quizzes);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while fetching quizzes" });
+  }
+};
+
+module.exports = {
+  generateQuiz,
+  listAllQuizzes,
+  listQuizzesBySubject,
+  createQuizWithQuestions,
+  completeQuiz,
+};
