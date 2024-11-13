@@ -30,6 +30,26 @@ const getUserByName = async (req, res) => {
   }
 };
 
+const addFriend = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { friendId } = req.body;
+
+    if (userId === friendId) {
+      return res.status(400).json({ message: "Cannot add yourself as a friend." });
+    }
+
+    await userModel.addFriend(userId, friendId);
+    await userModel.addFriend(friendId, userId);
+
+    res.status(200).json({ message: "Friend added successfully!" });
+  } catch (e) {
+    console.error('Error in addFriend:', e.message);  // Log any error
+    res.status(500).json({ message: "failure", reason: e.message });
+  }
+};
+
+
 const getUserById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -85,26 +105,6 @@ const deleteUser = async (req, res) => {
     res.json(user);
   } catch (e) {
     res.json({ message: "failure", reason: e.message });
-  }
-};
-
-const addFriend = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const { friendId } = req.body;
-
-    if (userId === friendId) {
-      return res
-        .status(400)
-        .json({ message: "Cannot add yourself as a friend." });
-    }
-
-    await userModel.addFriend(userId, friendId);
-    await userModel.addFriend(friendId, userId);
-
-    res.status(200).json({ message: "Friend added successfully!" });
-  } catch (e) {
-    res.status(500).json({ message: "failure", reason: e.message });
   }
 };
 
