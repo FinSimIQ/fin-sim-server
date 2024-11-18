@@ -279,19 +279,6 @@ const completeQuiz = async (req, res) => {
       .status(500)
       .json({ message: "Error completing quiz", error: error.message });
   }
-		if (result.success) {
-			return res
-				.status(200)
-				.json({ message: "Points awarded", points: result.pointsAwarded });
-		} else {
-			return res.status(400).json({ message: result.message });
-		}
-	} catch (error) {
-		console.error("Error completing quiz:", error);
-		return res
-			.status(500)
-			.json({ message: "Error completing quiz", error: error.message });
-	}
 };
 
 const listQuizzesBySubject = async (req, res) => {
@@ -323,6 +310,7 @@ const listAllQuizzes = async (req, res) => {
 module.exports = {
   generateQuiz,
   listAllQuizzes,
+  createCustomQuiz,
   listQuizzesBySubject,
   createQuizWithQuestions,
   completeQuiz,
