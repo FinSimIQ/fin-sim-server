@@ -39,12 +39,10 @@ const createCustomQuiz = async (req, res) => {
     !answers ||
     questions.length !== answers.length
   ) {
-    return res
-      .status(400)
-      .json({
-        message:
-          "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length.",
-      });
+    return res.status(400).json({
+      message:
+        "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length.",
+    });
   }
 
   // Create question-answer pairs
@@ -144,6 +142,7 @@ const createQuizWithQuestions = async (req, res) => {
       title: "Weekly Finance Quiz!",
       description: "A quiz on recent finance events",
       questions,
+      subject: "Fintech",
       events: eventList,
     });
 
@@ -196,7 +195,7 @@ const generateQuiz = async (topic) => {
     );
 
     const quiz = response.choices[0].message.content;
-    console.log(quiz)
+    console.log(quiz);
   } catch (error) {
     console.error("Error with OpenAI API:", error);
   }
