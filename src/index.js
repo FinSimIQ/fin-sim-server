@@ -34,10 +34,17 @@ app.use("/api/quiz", quizRoutes);
 app.use("/api/generate-course-content", contentGenerationRoutes)
 
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+	res.send("Hello World!");
 });
 
 const port = process?.env?.PORT || 8081;
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+	console.log(`Server running on port ${port}`);
+});
+
+const cron = require("node-cron");
+const { generateWeeklyQuiz } = require("./controllers/Quiz.controller");
+cron.schedule("59 23 * * Sun", generateWeeklyQuiz, {
+	scheduled: true,
+	timezone: "Europe/London",
 });
