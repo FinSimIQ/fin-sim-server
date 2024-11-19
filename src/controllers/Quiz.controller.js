@@ -125,6 +125,10 @@ const generateWeeklyQuizFunctionality = async () => {
         `D) ${optionsMatch[4].trim()}`,
       ];
 
+      if (options.length !== 4 || options.includes(undefined)) {
+        throw new Error("Invalid or incomplete options generated");
+      }
+
       const newQuestion = new Question({
         question,
         answers: options,
@@ -304,9 +308,20 @@ const getNewestWeeklyQuiz = async (req, res) => {
       return res.status(404).json({ message: "No weekly quizzes found" });
     }
 
-    res
-      .status(200)
-      .json({ message: "Newest weekly quiz retrieved", quiz: newestQuiz });
+    const validQuestions = newestQuiz.questions.map((question) => {
+      if (!question.answers || question.answers.length !== 4) {
+        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+      }
+      return question;
+    });
+
+    res.status(200).json({
+      message: "Newest weekly quiz retrieved",
+      quiz: {
+        ...newestQuiz.toObject(),
+        questions: validQuestions, // Only includes questions that have 4 options
+      },
+    });
   } catch (error) {
     console.error("Error fetching newest weekly quiz:", error);
     res
@@ -341,9 +356,19 @@ const getQuizByWeek = async (req, res) => {
         .json({ message: `No quiz found for week offset: ${weekOffset}` });
     }
 
+    const validQuestions = weeklyQuiz.questions.map((question) => {
+      if (!question.answers || question.answers.length !== 4) {
+        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+      }
+      return question;
+    });
+
     res.status(200).json({
       message: `Quiz for week offset ${weekOffset} retrieved`,
-      quiz: weeklyQuiz,
+      quiz: {
+        ...weeklyQuiz.toObject(),
+        questions: validQuestions, // Only includes questions that have 4 options
+      },
     });
   } catch (error) {
     console.error("Error fetching quiz by week:", error);
