@@ -176,6 +176,30 @@ const generateWeeklyQuiz = async (req, res) => {
 const createQuizWithQuestions = async (req, res) => {
   try {
     const newQuiz = await generateQuiz(req.body.topic, req.body.numOfQuestions);
+
+    const questions = [];
+    newQuiz.quiz.forEach(async (nq) => {
+      const newQuestion = new Question({
+        question: nq.question,
+        answers: nq.options,
+        correctAnswer: nq.correctAnswer,
+        description: nq.description,
+      });
+
+      await newQuestion.save();
+      questions.push(newQuestion);
+    });
+
+    const q = new Quiz({
+      title: req.body.topic,
+      description: "eg",
+      questions,
+      subject: "Stock Market",
+      events: [],
+    });
+
+    await q.save();
+
     res.json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
@@ -195,6 +219,7 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
     const response = await openai.chat.completions.create(
       {
         model: "gpt-4o",
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
@@ -210,7 +235,9 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
             content: [
               {
                 type: "text",
-                text: `Create a quiz with ${numOfQuestions} questions on ${topic} along with their answers.`,
+                text: `Create a quiz with ${numOfQuestions} questions on ${topic} along with their answers. Give me a response in this format:
+                {description: w, question: x, options: y, correctAnswer: z} where w is a description of why the answer is correct, x is a string, y is a list of strings and z is the correct answer.
+                Every single response should be an element of a list and the response should be in JSON format.`,
               },
             ],
           },
@@ -224,7 +251,10 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
     );
 
     const quiz = response.choices[0].message.content;
-    console.log(quiz);
+
+    console.log(JSON.parse(quiz));
+    const result = await JSON.parse(quiz);
+    return result;
   } catch (error) {
     console.error("Error with OpenAI API:", error);
   }
@@ -310,7 +340,9 @@ const getNewestWeeklyQuiz = async (req, res) => {
 
     const validQuestions = newestQuiz.questions.map((question) => {
       if (!question.answers || question.answers.length !== 4) {
-        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+        throw new Error(
+          `Question with ID ${question._id} has incomplete answers`
+        );
       }
       return question;
     });
@@ -358,7 +390,9 @@ const getQuizByWeek = async (req, res) => {
 
     const validQuestions = weeklyQuiz.questions.map((question) => {
       if (!question.answers || question.answers.length !== 4) {
-        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+        throw new Error(
+          `Question with ID ${question._id} has incomplete answers`
+        );
       }
       return question;
     });
