@@ -23,8 +23,6 @@ const pointsTable = {
   ],
 };
 
-
-
 const OpenAI = require("openai");
 const openai = new OpenAI();
 require("dotenv").config();
@@ -34,42 +32,54 @@ const createCustomQuiz = async (req, res) => {
   const { name, difficulty, questions, answers } = req.body;
 
   // Validate input data
-  if (!name || !difficulty || !questions || !answers || questions.length !== answers.length) {
-    return res.status(400).json({ message: "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length." });
+  if (
+    !name ||
+    !difficulty ||
+    !questions ||
+    !answers ||
+    questions.length !== answers.length
+  ) {
+    return res.status(400).json({
+      message:
+        "Invalid input data. Ensure all fields are present and questions/answers arrays are of equal length.",
+    });
   }
 
   // Create question-answer pairs
   const questionAnswerPairs = questions.map((question, index) => ({
     question,
-    answer: answers[index]
+    answer: answers[index],
   }));
 
   try {
     // Save the custom quiz to the database
     const newQuiz = new Quiz({ name, difficulty, questionAnswerPairs });
     const savedQuiz = await newQuiz.save();
-    
-    res.status(201).json({ message: "Quiz created successfully", quiz: savedQuiz });
+
+    res
+      .status(201)
+      .json({ message: "Quiz created successfully", quiz: savedQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
-    res.status(500).json({ message: "Error creating quiz", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error creating quiz", error: error.message });
   }
 };
 
-// Existing function: createQuizWithQuestions
-const createQuizWithQuestions = async (req, res) => {
+const generateWeeklyQuizFunctionality = async () => {
   try {
     // get finance events from gpt
     const eventPrompt = `
-        Summarize five major finance-related events that took place recently.
-        Please respond in the following structured format:
+  Summarize five major finance-related events that took place recently.
+  Please respond in the following structured format:
 
-        1. <Event 1>
-        2. <Event 2>
-        3. <Event 3>
-        4. <Event 4>
-        5. <Event 5>
-        `;
+  1. <Event 1>
+  2. <Event 2>
+  3. <Event 3>
+  4. <Event 4>
+  5. <Event 5>
+  `;
 
     const eventsResponse = await helper(eventPrompt);
     const eventList = eventsResponse.split("\n").filter((line) => {
@@ -82,14 +92,14 @@ const createQuizWithQuestions = async (req, res) => {
     // loop over each event and generate questions and descriptions
     for (const event of eventList) {
       const questionPrompt = `Create a quiz question from the following event: ${event}.
-            Please respond with the following format:
-            - Question: <The quiz question>
-            - Options:
-            A) <Option A>
-            B) <Option B>
-            C) <Option C>
-            D) <Option D>
-            - Correct Answer: <The correct answer>`;
+      Please respond with the following format:
+      - Question: <The quiz question>
+      - Options:
+      A) <Option A>
+      B) <Option B>
+      C) <Option C>
+      D) <Option D>
+      - Correct Answer: <The correct answer>`;
       const questionResponse = await helper(questionPrompt);
       const descriptionPrompt = `Provide a brief description of the event: ${event}`;
       const descriptionResponse = await helper(descriptionPrompt);
@@ -115,6 +125,10 @@ const createQuizWithQuestions = async (req, res) => {
         `D) ${optionsMatch[4].trim()}`,
       ];
 
+      if (options.length !== 4 || options.includes(undefined)) {
+        throw new Error("Invalid or incomplete options generated");
+      }
+
       const newQuestion = new Question({
         question,
         answers: options,
@@ -131,19 +145,48 @@ const createQuizWithQuestions = async (req, res) => {
       title: "Weekly Finance Quiz!",
       description: "A quiz on recent finance events",
       questions,
+      subject: "Fintech",
       events: eventList,
     });
 
     await newQuiz.save();
+
+    console.log({ message: "Quiz created successfully", quiz: newQuiz });
+
+    return newQuiz;
+  } catch (error) {
+    console.error("Error creating quiz:", error);
+    throw error;
+  }
+};
+
+const generateWeeklyQuiz = async (req, res) => {
+  try {
+    const newQuiz = await generateWeeklyQuizFunctionality();
     res.json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
-    res.status(500).json({ message: "Error creating quiz", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error creating quiz", error: error.message });
+  }
+};
+
+// Existing function: createQuizWithQuestions
+const createQuizWithQuestions = async (req, res) => {
+  try {
+    const newQuiz = await generateQuiz(req.body.topic, req.body.numOfQuestions);
+    res.json({ message: "Quiz created successfully", quiz: newQuiz });
+  } catch (error) {
+    console.error("Error creating quiz:", error);
+    res
+      .status(500)
+      .json({ message: "Error creating quiz", error: error.message });
   }
 };
 
 // Existing function: generateQuiz
-const generateQuiz = async (topic) => {
+const generateQuiz = async (topic, numOfQuestions = 5) => {
   if (!topic) {
     throw new Error("Please provide a topic.");
   }
@@ -167,7 +210,7 @@ const generateQuiz = async (topic) => {
             content: [
               {
                 type: "text",
-                text: `Create a quiz with ten questions on ${topic} along with their answers.`,
+                text: `Create a quiz with ${numOfQuestions} questions on ${topic} along with their answers.`,
               },
             ],
           },
@@ -175,12 +218,13 @@ const generateQuiz = async (topic) => {
       },
       {
         headers: {
-          Authorization: `Bearer ${process.env.CHATGPT_API_KEY}`,
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
       }
     );
 
     const quiz = response.choices[0].message.content;
+    console.log(quiz);
   } catch (error) {
     console.error("Error with OpenAI API:", error);
   }
@@ -218,28 +262,39 @@ const assignPoints = async (userId, quizType, scoreObtained, totalScore) => {
       return { success: true, pointsAwarded: points };
     }
 
-    return { success: false, message: "Score did not meet any tier requirements" };
+    return {
+      success: false,
+      message: "Score did not meet any tier requirements",
+    };
   } catch (error) {
     console.error("Error assigning points:", error);
     return { success: false, message: "An error occurred" };
   }
 };
 
-
 const completeQuiz = async (req, res) => {
   const { userId, quizType, scoreObtained, totalScore } = req.body;
 
   try {
-    const result = await assignPoints(userId, quizType, scoreObtained, totalScore);
+    const result = await assignPoints(
+      userId,
+      quizType,
+      scoreObtained,
+      totalScore
+    );
 
     if (result.success) {
-      return res.status(200).json({ message: "Points awarded", points: result.pointsAwarded });
+      return res
+        .status(200)
+        .json({ message: "Points awarded", points: result.pointsAwarded });
     } else {
       return res.status(400).json({ message: result.message });
     }
   } catch (error) {
     console.error("Error completing quiz:", error);
-    return res.status(500).json({ message: "Error completing quiz", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Error completing quiz", error: error.message });
   }
 };
 
@@ -253,10 +308,21 @@ const getNewestWeeklyQuiz = async (req, res) => {
       return res.status(404).json({ message: "No weekly quizzes found" });
     }
 
-    res.status(200).json({ message: "Newest weekly quiz retrieved", quiz: newestQuiz });
+    const validQuestions = newestQuiz.questions.map((question) => {
+      if (!question.answers || question.answers.length !== 4) {
+        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+      }
+      return question;
+    });
+
+    res
+      .status(200)
+      .json({ message: "Newest weekly quiz retrieved", quiz: newestQuiz });
   } catch (error) {
     console.error("Error fetching newest weekly quiz:", error);
-    res.status(500).json({ message: "An error occurred", error: error.message });
+    res
+      .status(500)
+      .json({ message: "An error occurred", error: error.message });
   }
 };
 
@@ -281,14 +347,65 @@ const getQuizByWeek = async (req, res) => {
     }).populate("questions");
 
     if (!weeklyQuiz) {
-      return res.status(404).json({ message: `No quiz found for week offset: ${weekOffset}` });
+      return res
+        .status(404)
+        .json({ message: `No quiz found for week offset: ${weekOffset}` });
     }
 
-    res.status(200).json({ message: `Quiz for week offset ${weekOffset} retrieved`, quiz: weeklyQuiz });
+    const validQuestions = weeklyQuiz.questions.map((question) => {
+      if (!question.answers || question.answers.length !== 4) {
+        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+      }
+      return question;
+    });
+
+    res.status(200).json({
+      message: `Quiz for week offset ${weekOffset} retrieved`,
+      quiz: weeklyQuiz,
+    });
   } catch (error) {
     console.error("Error fetching quiz by week:", error);
-    res.status(500).json({ message: "An error occurred", error: error.message });
+    res
+      .status(500)
+      .json({ message: "An error occurred", error: error.message });
   }
 };
 
-module.exports = { generateQuiz, createQuizWithQuestions, completeQuiz, getNewestWeeklyQuiz, getQuizByWeek };
+const listQuizzesBySubject = async (req, res) => {
+  const { subject } = req.params;
+  try {
+    const quizzes = await Quiz.find({ subject }).populate("questions");
+    if (quizzes.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No quizzes found for this subject" });
+    }
+    res.status(200).json(quizzes);
+  } catch (error) {
+    res
+      .status(500)
+      .json({ error: "An error occurred while fetching quizzes by subject" });
+  }
+};
+
+const listAllQuizzes = async (req, res) => {
+  try {
+    const quizzes = await Quiz.find().populate("questions");
+    res.status(200).json(quizzes);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while fetching quizzes" });
+  }
+};
+
+module.exports = {
+  generateQuiz,
+  listAllQuizzes,
+  createCustomQuiz,
+  listQuizzesBySubject,
+  createQuizWithQuestions,
+  completeQuiz,
+  generateWeeklyQuizFunctionality,
+  generateWeeklyQuiz,
+  getNewestWeeklyQuiz,
+  getQuizByWeek,
+};
