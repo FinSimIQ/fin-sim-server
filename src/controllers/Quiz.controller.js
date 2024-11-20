@@ -178,17 +178,20 @@ const createQuizWithQuestions = async (req, res) => {
     const newQuiz = await generateQuiz(req.body.topic, req.body.numOfQuestions);
 
     const questions = [];
-    newQuiz.quiz.forEach(async (nq) => {
+    console.log(newQuiz);
+    for (let i = 0; i < newQuiz.quiz.length; i++) {
       const newQuestion = new Question({
-        question: nq.question,
-        answers: nq.options,
-        correctAnswer: nq.correctAnswer,
-        description: nq.description,
+        question: newQuiz.quiz[i].question,
+        answers: newQuiz.quiz[i].options,
+        correctAnswer: newQuiz.quiz[i].correctAnswer,
+        description: newQuiz.quiz[i].description,
       });
 
       await newQuestion.save();
       questions.push(newQuestion);
-    });
+    }
+
+    console.log(questions);
 
     const q = new Quiz({
       title: req.body.topic,
@@ -431,7 +434,7 @@ const listQuizzesBySubject = async (req, res) => {
 
 const listAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find().populate("questions");
+    const quizzes = (await Quiz.find().populate("questions")).reverse();
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ error: "An error occurred while fetching quizzes" });
