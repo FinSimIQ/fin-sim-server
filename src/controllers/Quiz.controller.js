@@ -176,6 +176,33 @@ const generateWeeklyQuiz = async (req, res) => {
 const createQuizWithQuestions = async (req, res) => {
   try {
     const newQuiz = await generateQuiz(req.body.topic, req.body.numOfQuestions);
+
+    const questions = [];
+    console.log(newQuiz);
+    for (let i = 0; i < newQuiz.quiz.length; i++) {
+      const newQuestion = new Question({
+        question: newQuiz.quiz[i].question,
+        answers: newQuiz.quiz[i].options,
+        correctAnswer: newQuiz.quiz[i].correctAnswer,
+        description: newQuiz.quiz[i].description,
+      });
+
+      await newQuestion.save();
+      questions.push(newQuestion);
+    }
+
+    console.log(questions);
+
+    const q = new Quiz({
+      title: req.body.topic,
+      description: "eg",
+      questions,
+      subject: "Stock Market",
+      events: [],
+    });
+
+    await q.save();
+
     res.json({ message: "Quiz created successfully", quiz: newQuiz });
   } catch (error) {
     console.error("Error creating quiz:", error);
@@ -195,6 +222,7 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
     const response = await openai.chat.completions.create(
       {
         model: "gpt-4o",
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
@@ -210,7 +238,9 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
             content: [
               {
                 type: "text",
-                text: `Create a quiz with ${numOfQuestions} questions on ${topic} along with their answers.`,
+                text: `Create a quiz with ${numOfQuestions} questions on ${topic} along with their answers. Give me a response in this format:
+                {description: w, question: x, options: y, correctAnswer: z} where w is a description of why the answer is correct, x is a string, y is a list of strings and z is the correct answer.
+                Every single response should be an element of a list and the response should be in JSON format.`,
               },
             ],
           },
@@ -224,7 +254,10 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
     );
 
     const quiz = response.choices[0].message.content;
-    console.log(quiz);
+
+    console.log(JSON.parse(quiz));
+    const result = await JSON.parse(quiz);
+    return result;
   } catch (error) {
     console.error("Error with OpenAI API:", error);
   }
@@ -310,14 +343,20 @@ const getNewestWeeklyQuiz = async (req, res) => {
 
     const validQuestions = newestQuiz.questions.map((question) => {
       if (!question.answers || question.answers.length !== 4) {
-        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+        throw new Error(
+          `Question with ID ${question._id} has incomplete answers`
+        );
       }
       return question;
     });
 
-    res
-      .status(200)
-      .json({ message: "Newest weekly quiz retrieved", quiz: newestQuiz });
+    res.status(200).json({
+      message: "Newest weekly quiz retrieved",
+      quiz: {
+        ...newestQuiz.toObject(),
+        questions: validQuestions, // Only includes questions that have 4 options
+      },
+    });
   } catch (error) {
     console.error("Error fetching newest weekly quiz:", error);
     res
@@ -354,14 +393,19 @@ const getQuizByWeek = async (req, res) => {
 
     const validQuestions = weeklyQuiz.questions.map((question) => {
       if (!question.answers || question.answers.length !== 4) {
-        throw new Error(`Question with ID ${question._id} has incomplete answers`);
+        throw new Error(
+          `Question with ID ${question._id} has incomplete answers`
+        );
       }
       return question;
     });
 
     res.status(200).json({
       message: `Quiz for week offset ${weekOffset} retrieved`,
-      quiz: weeklyQuiz,
+      quiz: {
+        ...weeklyQuiz.toObject(),
+        questions: validQuestions, // Only includes questions that have 4 options
+      },
     });
   } catch (error) {
     console.error("Error fetching quiz by week:", error);
@@ -390,7 +434,7 @@ const listQuizzesBySubject = async (req, res) => {
 
 const listAllQuizzes = async (req, res) => {
   try {
-    const quizzes = await Quiz.find().populate("questions");
+    const quizzes = (await Quiz.find().populate("questions")).reverse();
     res.status(200).json(quizzes);
   } catch (error) {
     res.status(500).json({ error: "An error occurred while fetching quizzes" });
