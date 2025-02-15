@@ -81,10 +81,15 @@ const generateWeeklyQuizFunctionality = async () => {
   5. <Event 5>
   `;
 
+    /*
     const eventsResponse = await helper(eventPrompt);
     const eventList = eventsResponse.split("\n").filter((line) => {
       return line.trim().match(/^\d+\./);
     });
+    */
+
+    const eventsResponse = await helper(eventPrompt);
+    const eventList = eventsResponse.events;
 
     const questionIds = [];
     const questions = [];
@@ -221,7 +226,7 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
   try {
     const response = await openai.chat.completions.create(
       {
-        model: "gpt-4o",
+        model: "deepseek-32",
         response_format: { type: "json_object" },
         messages: [
           {
