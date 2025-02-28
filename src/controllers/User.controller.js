@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const userModel = require("../models/User.model");
+const { sendEmail } = require("../services/emailService");
 
 const getAllUsers = async (req, res) => {
   try {
@@ -116,6 +117,53 @@ const updateUserPoints = async (email, updates) => {
   }
 };
 
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const resetToken = await userModel.generatePasswordResetToken(email);
+    
+    if (!resetToken) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const resetPasswordUrl = `http://localhost:5173/resetPassword?token=${resetToken}`;
+    console.log(`Password reset token for ${email}: ${resetToken}`);
+    
+    const emailBody = `
+      <html>
+        <body>
+          <p>You requested a password reset. Please use the following link to reset your password:</p>
+          <p><a href="${resetPasswordUrl}" style="color: #4CAF50; font-size: 16px;">Click here to reset your password</a></p>
+          <p>If you did not request this, please ignore this email. The link will expire in 1 hour.</p>
+        </body>
+      </html>
+    `;
+
+    await sendEmail(email, 'Password Reset Request', emailBody)
+      .then(() => console.log('Email sent successfully!'))
+      .catch(err => console.error(err));
+
+    res.json({ message: "Password reset token generated. Check email for instructions." });
+  } catch (e) {
+    res.status(500).json({ message: "Failed to generate reset token for this email", reason: e.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    const user = await userModel.resetPassword(token, newPassword);
+    
+    if (!user) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+    
+    res.json({ message: "Password reset successful" });
+  } catch (e) {
+    res.status(500).json({ message: "Failed password reset", reason: e.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserByEmail,
@@ -126,4 +174,6 @@ module.exports = {
   updateUserPoints,
   getUserById,
   addFriend,
+  forgotPassword,
+  resetPassword
 };
