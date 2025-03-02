@@ -1,4 +1,6 @@
 const User = require("../schemas/User.schema");
+const bcrypt = require('bcrypt'); 
+const crypto = require("crypto");
 
 const getAllUsers = async () => {
   return await User.find({}).exec();
@@ -40,6 +42,35 @@ const addFriend = async (userId, friendId) => {
   ).exec();
 };
 
+const generatePasswordResetToken = async (email) => {
+  const users = await getUserByEmail(email);
+  if (!users || users.length === 0) return null;
+  const user = users[0];
+
+  // generate a random reset token
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  //const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+  user.resetToken = resetToken;
+  user.resetTokenExpires = Date.now() + 3600000; // token expires in 1 hour
+  await user.save();
+
+  return resetToken;
+};
+
+const resetPassword = async (token, newPassword) => {
+  const user = await User.findOne({
+    resetToken: token, 
+    resetTokenExpires: { $gt: Date.now() },
+  });
+
+  if (!user) return null;
+  user.password = await bcrypt.hash(newPassword, 10);
+  user.resetToken = undefined;
+  user.resetTokenExpires = undefined;
+  await user.save();
+
+  return user;
 
 ////// Adding portfolio changes
 const buyAsset = async (userId, assetType, assetSymbol, quantity, price) => {
@@ -243,4 +274,6 @@ module.exports = {
   updateUserPoints,
   getUserById,
   addFriend,
+  generatePasswordResetToken,
+  resetPassword,
 };
