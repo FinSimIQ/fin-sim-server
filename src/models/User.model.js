@@ -1,5 +1,5 @@
 const User = require("../schemas/User.schema");
-const bcrypt = require('bcrypt'); 
+const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
 const getAllUsers = async () => {
@@ -60,7 +60,7 @@ const generatePasswordResetToken = async (email) => {
 
 const resetPassword = async (token, newPassword) => {
   const user = await User.findOne({
-    resetToken: token, 
+    resetToken: token,
     resetTokenExpires: { $gt: Date.now() },
   });
 
@@ -71,6 +71,7 @@ const resetPassword = async (token, newPassword) => {
   await user.save();
 
   return user;
+};
 
 ////// Adding portfolio changes
 const buyAsset = async (userId, assetType, assetSymbol, quantity, price) => {
@@ -90,7 +91,8 @@ const buyAsset = async (userId, assetType, assetSymbol, quantity, price) => {
   if (existingAsset) {
     existingAsset.quantity += quantity;
     existingAsset.investedAmount += totalCost;
-    existingAsset.buyPrice = existingAsset.investedAmount / existingAsset.quantity;
+    existingAsset.buyPrice =
+      existingAsset.investedAmount / existingAsset.quantity;
   } else {
     user.portfolio.push({
       assetType,
@@ -122,14 +124,16 @@ const sellAsset = async (userId, assetSymbol, quantity, sellPrice) => {
   const user = await User.findById(userId);
   if (!user) throw new Error("User not found");
 
-  const assetIndex = user.portfolio.findIndex((asset) => asset.assetSymbol === assetSymbol);
+  const assetIndex = user.portfolio.findIndex(
+    (asset) => asset.assetSymbol === assetSymbol
+  );
   if (assetIndex === -1 || user.portfolio[assetIndex].quantity < quantity) {
     throw new Error("Not enough assets to sell");
   }
 
   const asset = user.portfolio[assetIndex];
   const totalSale = quantity * sellPrice;
-  const investedAmount = (asset.buyPrice * quantity);
+  const investedAmount = asset.buyPrice * quantity;
   const profitLoss = totalSale - investedAmount;
 
   user.liquidMoney += totalSale;
@@ -158,7 +162,8 @@ const sellAsset = async (userId, assetSymbol, quantity, sellPrice) => {
   return { user, profitLoss };
 };
 
-const updateAssetAllocation = async (user) => {    //// Updates percentages of assets
+const updateAssetAllocation = async (user) => {
+  //// Updates percentages of assets
   const totalValue = user.liquidMoney + user.totalInvested;
   if (totalValue === 0) return;
 
@@ -184,16 +189,16 @@ const updateRiskScore = async (user) => {
 
   user.portfolio.forEach((asset) => {
     switch (asset.assetType) {
-      case 'Stock':
+      case "Stock":
         riskScore += 15;
         break;
-      case 'Bond':
+      case "Bond":
         riskScore += 5;
         break;
-      case 'ETF':
+      case "ETF":
         riskScore += 8;
         break;
-      case 'Crypto':
+      case "Crypto":
         riskScore += 20;
         break;
       default:
@@ -220,16 +225,20 @@ const updateDiversificationScore = async (user) => {
 const checkStockAlerts = async (user, currentPrices) => {
   user.stockAlerts.forEach((alert) => {
     const currentPrice = currentPrices[alert.assetSymbol];
-    
+
     if (alert.alertType === "rise") {
       if (currentPrice >= alert.targetPrice && !alert.alertTriggered) {
         alert.alertTriggered = true;
-        console.log(`Alert: ${alert.assetSymbol} has risen to the target price of ${alert.targetPrice}`); //// Method to signify the alert, can change this to email user
+        console.log(
+          `Alert: ${alert.assetSymbol} has risen to the target price of ${alert.targetPrice}`
+        ); //// Method to signify the alert, can change this to email user
       }
     } else if (alert.alertType === "fall") {
       if (currentPrice <= alert.targetPrice && !alert.alertTriggered) {
         alert.alertTriggered = true;
-        console.log(`Alert: ${alert.assetSymbol} has fallen to the target price of ${alert.targetPrice}`);   //// Method to signify the alert, can change this to email user
+        console.log(
+          `Alert: ${alert.assetSymbol} has fallen to the target price of ${alert.targetPrice}`
+        ); //// Method to signify the alert, can change this to email user
       }
     }
   });
@@ -256,10 +265,19 @@ const calculateDiversificationScore = (portfolio) => {
   const totalSectors = Object.keys(sectorDistribution).length;
 
   if (totalSectors > 0) {
-    const sectorScores = Object.values(sectorDistribution).map((sectorAmount) => {
-      return (sectorAmount / totalInvestedAmount) * 100;
-    });
-    diversificationScore = Math.min(100, sectorScores.reduce((sum, sectorPercent) => sum + (100 - Math.abs(sectorPercent - (100 / totalSectors)))), 0);
+    const sectorScores = Object.values(sectorDistribution).map(
+      (sectorAmount) => {
+        return (sectorAmount / totalInvestedAmount) * 100;
+      }
+    );
+    diversificationScore = Math.min(
+      100,
+      sectorScores.reduce(
+        (sum, sectorPercent) =>
+          sum + (100 - Math.abs(sectorPercent - 100 / totalSectors))
+      ),
+      0
+    );
   }
 
   return diversificationScore;
@@ -276,4 +294,10 @@ module.exports = {
   addFriend,
   generatePasswordResetToken,
   resetPassword,
+  buyAsset,
+  sellAsset,
+  updateAssetAllocation,
+  updateRiskScore,
+  updateDiversificationScore,
+  checkStockAlerts,
 };

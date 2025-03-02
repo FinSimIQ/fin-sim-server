@@ -226,7 +226,7 @@ const generateQuiz = async (topic, numOfQuestions = 5) => {
   try {
     const response = await openai.chat.completions.create(
       {
-        model: "deepseek-32",
+        model: "chatgpt-4o-latest",
         response_format: { type: "json_object" },
         messages: [
           {

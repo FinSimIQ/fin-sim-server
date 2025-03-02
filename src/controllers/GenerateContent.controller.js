@@ -46,28 +46,16 @@ const generateCourseContent = async (req, res) => {
 
 const generateSubtopics = async (topic, description, difficulty) => {
   const subtopicPrompt = `
-      Generate three subtopics for a course based on the following information. Each subtopic should be relevant to the main topic and consider the specified difficulty level. 
-      Respond in a structured format to ensure easy parsing, as shown below.
-  
-      Topic: ${topic}
-      Description: ${description}
-      Difficulty: ${difficulty}
-  
-      Format your response strictly as follows:
-      Subtopic 1: <Subtopic title>
-      Description 1: <Description of subtopic 1>
-      Subtopic 2: <Subtopic title>
-      Description 2: <Description of subtopic 2>
-      Subtopic 3: <Subtopic title>
-      Description 3: <Description of subtopic 3>
+      Generate three subtopics for a course based on the following information. Each subtopic should be relevant to the main topic and consider the specified difficulty level. Ensure that the subtopics are unique, that there are atleast 3 subtopics (going upto 6 max) and that there is a list of atleast 2 paragraph descriptions for each subtopic (separate every paragraph into a new element in description array so there should be atleast 2 elements in the array). Respond in the following format:
+      {topic: <topic>, description: <description>, difficulty: <difficulty>, subtopics: [{title: <title>, description: [<descriptions>]}]}
     `;
-
   const response = await helper(JSON.stringify(subtopicPrompt));
   const subtopics = JSON.parse(response);
+  console.log(subtopics);
 
-  return subtopics.map(({ title, description }) => ({ title, description }));
+  return subtopics;
 
-    /*
+  /*
   const response = await helper(subtopicPrompt);
 
   const subtopics = [];
@@ -102,7 +90,8 @@ const saveCourseContent = async (content) => {
 const getAllCourses = async (req, res) => {
   try {
     const courses = await CourseContent.find().populate("quizzes");
-    res.json({ courses });
+    console.log(courses);
+    res.json(courses);
   } catch (error) {
     console.error("Error fetching courses:", error);
     res
