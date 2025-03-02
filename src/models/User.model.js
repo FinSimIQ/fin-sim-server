@@ -71,6 +71,198 @@ const resetPassword = async (token, newPassword) => {
   await user.save();
 
   return user;
+
+////// Adding portfolio changes
+const buyAsset = async (userId, assetType, assetSymbol, quantity, price) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  const totalCost = quantity * price;
+  if (user.liquidMoney < totalCost) throw new Error("Insufficient funds");
+
+  user.liquidMoney -= totalCost;
+  user.totalInvested += totalCost;
+
+  const existingAsset = user.portfolio.find(
+    (asset) => asset.assetSymbol === assetSymbol
+  );
+
+  if (existingAsset) {
+    existingAsset.quantity += quantity;
+    existingAsset.investedAmount += totalCost;
+    existingAsset.buyPrice = existingAsset.investedAmount / existingAsset.quantity;
+  } else {
+    user.portfolio.push({
+      assetType,
+      assetSymbol,
+      quantity,
+      buyPrice: price,
+      investedAmount: totalCost,
+      dateInvested: new Date(),
+    });
+  }
+
+  user.transactions.push({
+    type: "BUY",
+    assetType,
+    assetSymbol,
+    quantity,
+    price,
+    totalAmount: totalCost,
+  });
+
+  await updateAssetAllocation(user);
+  await updateDiversificationScore(user);
+  await updateRiskScore(user);
+  await user.save();
+  return user;
+};
+
+const sellAsset = async (userId, assetSymbol, quantity, sellPrice) => {
+  const user = await User.findById(userId);
+  if (!user) throw new Error("User not found");
+
+  const assetIndex = user.portfolio.findIndex((asset) => asset.assetSymbol === assetSymbol);
+  if (assetIndex === -1 || user.portfolio[assetIndex].quantity < quantity) {
+    throw new Error("Not enough assets to sell");
+  }
+
+  const asset = user.portfolio[assetIndex];
+  const totalSale = quantity * sellPrice;
+  const investedAmount = (asset.buyPrice * quantity);
+  const profitLoss = totalSale - investedAmount;
+
+  user.liquidMoney += totalSale;
+  user.totalInvested -= investedAmount;
+
+  asset.quantity -= quantity;
+  asset.investedAmount -= investedAmount;
+
+  if (asset.quantity === 0) {
+    user.portfolio.splice(assetIndex, 1);
+  }
+
+  user.transactions.push({
+    type: "SELL",
+    assetType: asset.assetType,
+    assetSymbol,
+    quantity,
+    price: sellPrice,
+    totalAmount: totalSale,
+  });
+
+  await updateAssetAllocation(user);
+  await updateDiversificationScore(user);
+  await updateRiskScore(user);
+  await user.save();
+  return { user, profitLoss };
+};
+
+const updateAssetAllocation = async (user) => {    //// Updates percentages of assets
+  const totalValue = user.liquidMoney + user.totalInvested;
+  if (totalValue === 0) return;
+
+  const newAllocation = {
+    cash: (user.liquidMoney / totalValue) * 100,
+    stocks: 0,
+    bonds: 0,
+    etfs: 0,
+    crypto: 0,
+  };
+
+  user.portfolio.forEach((asset) => {
+    const percentage = (asset.investedAmount / totalValue) * 100;
+    newAllocation[asset.assetType.toLowerCase() + "s"] += percentage;
+  });
+
+  user.assetAllocation = newAllocation;
+  await user.save();
+};
+
+const updateRiskScore = async (user) => {
+  let riskScore = 0;
+
+  user.portfolio.forEach((asset) => {
+    switch (asset.assetType) {
+      case 'Stock':
+        riskScore += 15;
+        break;
+      case 'Bond':
+        riskScore += 5;
+        break;
+      case 'ETF':
+        riskScore += 8;
+        break;
+      case 'Crypto':
+        riskScore += 20;
+        break;
+      default:
+        riskScore += 10;
+        break;
+    }
+  });
+
+  const assetTypes = user.portfolio.map((asset) => asset.assetType);
+  const uniqueAssetTypes = [...new Set(assetTypes)];
+  diversificationScore = (uniqueAssetTypes.length / 4) * 100;
+
+  user.riskScore = riskScore;
+  await user.save();
+};
+
+const updateDiversificationScore = async (user) => {
+  const diversificationScore = calculateDiversificationScore(user.portfolio);
+
+  user.diversificationScore = diversificationScore;
+  await user.save();
+};
+
+const checkStockAlerts = async (user, currentPrices) => {
+  user.stockAlerts.forEach((alert) => {
+    const currentPrice = currentPrices[alert.assetSymbol];
+    
+    if (alert.alertType === "rise") {
+      if (currentPrice >= alert.targetPrice && !alert.alertTriggered) {
+        alert.alertTriggered = true;
+        console.log(`Alert: ${alert.assetSymbol} has risen to the target price of ${alert.targetPrice}`); //// Method to signify the alert, can change this to email user
+      }
+    } else if (alert.alertType === "fall") {
+      if (currentPrice <= alert.targetPrice && !alert.alertTriggered) {
+        alert.alertTriggered = true;
+        console.log(`Alert: ${alert.assetSymbol} has fallen to the target price of ${alert.targetPrice}`);   //// Method to signify the alert, can change this to email user
+      }
+    }
+  });
+
+  await user.save();
+};
+
+/////// Helper method for calculation of diversification score
+const calculateDiversificationScore = (portfolio) => {
+  const sectorDistribution = {};
+  let totalInvestedAmount = 0;
+
+  portfolio.forEach((asset) => {
+    totalInvestedAmount += asset.investedAmount;
+
+    if (sectorDistribution[asset.sector]) {
+      sectorDistribution[asset.sector] += asset.investedAmount;
+    } else {
+      sectorDistribution[asset.sector] = asset.investedAmount;
+    }
+  });
+
+  let diversificationScore = 0;
+  const totalSectors = Object.keys(sectorDistribution).length;
+
+  if (totalSectors > 0) {
+    const sectorScores = Object.values(sectorDistribution).map((sectorAmount) => {
+      return (sectorAmount / totalInvestedAmount) * 100;
+    });
+    diversificationScore = Math.min(100, sectorScores.reduce((sum, sectorPercent) => sum + (100 - Math.abs(sectorPercent - (100 / totalSectors)))), 0);
+  }
+
+  return diversificationScore;
 };
 
 module.exports = {
