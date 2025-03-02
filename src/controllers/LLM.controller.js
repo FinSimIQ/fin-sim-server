@@ -13,7 +13,7 @@ async function helper(text) {
           content: text,
         },
       ],
-      model: "gpt-4o-mini",
+      model: "deepseek-32",
       //response_format: { type: "json_object" },
     });
 

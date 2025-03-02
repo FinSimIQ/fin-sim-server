@@ -62,6 +62,12 @@ const generateSubtopics = async (topic, description, difficulty) => {
       Description 3: <Description of subtopic 3>
     `;
 
+  const response = await helper(JSON.stringify(subtopicPrompt));
+  const subtopics = JSON.parse(response);
+
+  return subtopics.map(({ title, description }) => ({ title, description }));
+
+    /*
   const response = await helper(subtopicPrompt);
 
   const subtopics = [];
@@ -74,6 +80,7 @@ const generateSubtopics = async (topic, description, difficulty) => {
   }
 
   return subtopics;
+  */
 };
 
 const CourseContent = mongoose.model("CourseContent");
