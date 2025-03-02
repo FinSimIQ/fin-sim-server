@@ -14,15 +14,13 @@ async function helper(text) {
         },
       ],
       model: "chatgpt-4o-latest",
-      //response_format: { type: "json_object" },
+      response_format: { type: "json_object" },
     });
 
     const response = completion.choices[0].message.content;
     return response;
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error calling llm", error: error.message });
+    console.error("Error generating content:", error);
   }
 }
 

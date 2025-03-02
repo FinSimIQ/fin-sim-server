@@ -13,20 +13,24 @@ const generateCourseContent = async (req, res) => {
 
   try {
     // generate subtopics
-    const subtopics = await generateSubtopics(topic, description);
+    const subtopics = await generateSubtopics(topic, description, difficulty);
 
     // generate quiz for Each Subtopic Using `generateQuiz`
-    const quizzes = await Promise.all(
-      subtopics.map(async (subtopic) => {
-        return await generateQuiz(subtopic.title);
-      })
-    );
+    // const quizzes = await Promise.all(
+    //   subtopics.map(async (subtopic) => {
+    //     return await generateQuiz(subtopic.title);
+    //   })
+    // );
+
+    // const quizzes = await generateQuiz(topic, 5);
+    const quizzes = [];
 
     // save course content, subtopics, and quizzes in database
     const newCourseContent = {
       topic,
       difficulty,
-      subtopics,
+      subtopics: subtopics.subtopics,
+      description,
       quizzes,
     };
 
@@ -46,11 +50,15 @@ const generateCourseContent = async (req, res) => {
 
 const generateSubtopics = async (topic, description, difficulty) => {
   const subtopicPrompt = `
-      Generate three subtopics for a course based on the following information. Each subtopic should be relevant to the main topic and consider the specified difficulty level. Ensure that the subtopics are unique, that there are atleast 3 subtopics (going upto 6 max) and that there is a list of atleast 2 paragraph descriptions for each subtopic (separate every paragraph into a new element in description array so there should be atleast 2 elements in the array). Respond in the following format:
+      Generate three subtopics for a course based on the following information. Each subtopic should be relevant to the main topic and consider the specified difficulty level. Ensure that the subtopics are unique, that there are atleast 3 subtopics (going upto 6 max) and that there is a list of atleast 2 paragraph descriptions for each subtopic (separate every paragraph into a new element in description array so there should be atleast 2 elements in the array). Respond in the following JSON format:
       {topic: <topic>, description: <description>, difficulty: <difficulty>, subtopics: [{title: <title>, description: [<descriptions>]}]}
+      Topic: ${topic}
+      Description: ${description}
+      Difficulty: ${difficulty}
     `;
   const response = await helper(JSON.stringify(subtopicPrompt));
-  const subtopics = JSON.parse(response);
+  console.log(response);
+  const subtopics = await JSON.parse(response);
   console.log(subtopics);
 
   return subtopics;
@@ -73,7 +81,8 @@ const generateSubtopics = async (topic, description, difficulty) => {
 
 const CourseContent = mongoose.model("CourseContent");
 const saveCourseContent = async (content) => {
-  const { topic, difficulty, subtopics, quizzes } = content;
+  const { topic, difficulty, subtopics, quizzes, description } = content;
+  console.log(content);
 
   const validQuizzes = quizzes.filter((quiz) => quiz && quiz._id);
 
@@ -81,6 +90,7 @@ const saveCourseContent = async (content) => {
     topic,
     difficulty,
     subtopics,
+    description,
     quizzes: validQuizzes.map((quiz) => quiz._id),
   });
 
