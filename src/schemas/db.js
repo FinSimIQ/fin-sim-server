@@ -16,3 +16,4 @@ require("./User.schema");
 require("./Quiz.schema");
 require("./Question.schema");
 require("./CourseContent.schema")
+require("./StockPrediction.schema");
