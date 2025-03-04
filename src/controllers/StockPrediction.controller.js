@@ -146,17 +146,43 @@ const predictStockPrice = async (req, res) => {
   }
 
   try {
-    // Note: These API calls might fail if rate limit is exceeded
-    const technicalResponse = await axios.get(BASE_URL, {
+    // Get RSI data
+    const rsiResponse = await axios.get(BASE_URL, {
       params: {
-        function: "TECHNICAL_INDICATORS",
+        function: "RSI",
         symbol: symbol,
         interval: "daily",
+        time_period: 14,
+        series_type: "close",
         apikey: API_KEY,
       },
     });
 
-    const fundamentalResponse = await axios.get(BASE_URL, {
+    // Get SMA data for 20 and 50 day periods
+    const sma20Response = await axios.get(BASE_URL, {
+      params: {
+        function: "SMA",
+        symbol: symbol,
+        interval: "daily",
+        time_period: 20,
+        series_type: "close",
+        apikey: API_KEY,
+      },
+    });
+
+    const sma50Response = await axios.get(BASE_URL, {
+      params: {
+        function: "SMA",
+        symbol: symbol,
+        interval: "daily",
+        time_period: 50,
+        series_type: "close",
+        apikey: API_KEY,
+      },
+    });
+
+    // Get company overview data
+    const overviewResponse = await axios.get(BASE_URL, {
       params: {
         function: "OVERVIEW",
         symbol: symbol,
@@ -164,20 +190,47 @@ const predictStockPrice = async (req, res) => {
       },
     });
 
-    // Handle missing or invalid data!
-    const technicalData = {
-      rsi: technicalResponse.data?.RSI?.["RSI"] || null,
-      movingAverages: {
-        sma20: technicalResponse.data?.SMA?.["SMA"] || null,
-        sma50: technicalResponse.data?.SMA?.["SMA"] || null,
+    // Get daily price data
+    const priceResponse = await axios.get(BASE_URL, {
+      params: {
+        function: "TIME_SERIES_DAILY",
+        symbol: symbol,
+        apikey: API_KEY,
       },
-      volume: technicalResponse.data?.Volume || [],
+    });
+
+    // Extract the latest data points
+    const rsiData = rsiResponse.data["Technical Analysis: RSI"];
+    const latestRsi = rsiData ? parseFloat(Object.values(rsiData)[0]?.RSI) : null;
+
+    const sma20Data = sma20Response.data["Technical Analysis: SMA"];
+    const latestSma20 = sma20Data ? parseFloat(Object.values(sma20Data)[0]?.SMA) : null;
+
+    const sma50Data = sma50Response.data["Technical Analysis: SMA"];
+    const latestSma50 = sma50Data ? parseFloat(Object.values(sma50Data)[0]?.SMA) : null;
+
+    const dailyData = priceResponse.data["Time Series (Daily)"];
+    const latestPrice = dailyData ? parseFloat(Object.values(dailyData)[0]["4. close"]) : null;
+    
+    const volumes = dailyData ? 
+      Object.values(dailyData)
+        .slice(0, 10)
+        .map(day => parseFloat(day["5. volume"]))
+      : [];
+
+    const technicalData = {
+      rsi: latestRsi,
+      movingAverages: {
+        sma20: latestSma20,
+        sma50: latestSma50,
+      },
+      volume: volumes,
     };
 
     const fundamentalData = {
-      peRatio: parseFloat(fundamentalResponse.data?.PERatio) || null,
-      debtToEquity: parseFloat(fundamentalResponse.data?.DebtToEquityRatio) || null,
-      profitMargin: parseFloat(fundamentalResponse.data?.ProfitMargin) || null,
+      peRatio: parseFloat(overviewResponse.data?.PERatio) || null,
+      debtToEquity: parseFloat(overviewResponse.data?.DebtToEquityRatio) || null,
+      profitMargin: parseFloat(overviewResponse.data?.ProfitMargin) || null,
     };
 
     // Calculate scores and combine technical/fundamental analysis
@@ -211,8 +264,8 @@ const predictStockPrice = async (req, res) => {
     // Consider adding a 'summary' field for simpler responses
     const prediction = {
       symbol,
-      currentPrice: parseFloat(fundamentalResponse.data?.Price) || 0,
-      predictedPrice: parseFloat(fundamentalResponse.data?.Price) * (1 + predictedROI / 100),
+      currentPrice: latestPrice || 0,
+      predictedPrice: (latestPrice || 0) * (1 + predictedROI / 100),
       predictedROI,
       timeframe: timeframe || "medium",
       confidenceScore,
@@ -224,9 +277,12 @@ const predictStockPrice = async (req, res) => {
             macdSignal: technicalAnalysis.totalScore > 0 ? "buy" : technicalAnalysis.totalScore < 0 ? "sell" : "neutral",
             rsiValue: technicalData.rsi,
             movingAverages: technicalData.movingAverages,
-            volumeTrend: technicalData.volume[technicalData.volume.length - 1] > 
-                        technicalData.volume[technicalData.volume.length - 2] ? "increasing" : "decreasing",
-            priceVolatility: calculatePriceVolatility(technicalData.volume),
+            volumeTrend: volumes[0] > volumes[1] ? "increasing" : "decreasing",
+            priceVolatility: calculatePriceVolatility(
+              Object.values(dailyData || {})
+                .slice(0, 30)
+                .map(day => parseFloat(day["4. close"]))
+            ),
           }
         },
         fundamental: {
@@ -234,19 +290,26 @@ const predictStockPrice = async (req, res) => {
           rules: fundamentalAnalysis.ruleResults,
           indicators: {
             peRatio: fundamentalData.peRatio,
-            pbRatio: parseFloat(fundamentalResponse.data?.PriceToBookRatio) || null,
+            pbRatio: parseFloat(overviewResponse.data?.PriceToBookRatio) || null,
             debtToEquity: fundamentalData.debtToEquity,
             profitMargin: fundamentalData.profitMargin,
-            revenueGrowth: parseFloat(fundamentalResponse.data?.RevenueGrowth) || null,
+            revenueGrowth: parseFloat(overviewResponse.data?.QuarterlyRevenueGrowthYOY) || null,
           }
         }
       }
     };
 
+    // Save prediction to MongoDB
+    const StockPrediction = require("../schemas/StockPrediction.schema");
+    await new StockPrediction(prediction).save();
+
     res.json(prediction);
   } catch (error) {
     console.error("Error predicting stock price:", error);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ 
+      error: "Internal server error",
+      details: error.response?.data || error.message 
+    });
   }
 };
 
