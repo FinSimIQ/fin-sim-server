@@ -27,6 +27,7 @@ const quizRoutes = require("./routes/Quiz.routes");
 const contentGenerationRoutes = require("./routes/GenerateContent.router");
 const stockRoutes = require("./routes/stockData.routes");
 const portfolioRoutes = require("./routes/portfolio.routes");
+const stockPredictionRoutes = require("./routes/StockPrediction.routes");
 
 // adding the controller
 app.use("/api/DummyData", dummyDataController);
@@ -36,6 +37,7 @@ app.use("/api/quiz", quizRoutes);
 app.use("/api/generate-course-content", contentGenerationRoutes);
 app.use("/api/stocks", stockRoutes);
 app.use("/api/portfolio", portfolioRoutes);
+app.use("/api/stock-prediction", stockPredictionRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
