@@ -50,11 +50,18 @@ const generatePasswordResetToken = async (email) => {
   // generate a random reset token
   const resetToken = crypto.randomBytes(32).toString("hex");
   //const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-
   user.resetToken = resetToken;
   user.resetTokenExpires = Date.now() + 3600000; // token expires in 1 hour
-  await user.save();
-
+  
+  try {
+    await user.save();
+    console.log("Save successful");
+  } catch (err) {
+    // forgot password error message: Failed to save user during password reset: User validation failed: portfolio.investedAmount: Path `portfolio.investedAmount` is required., portfolio.buyPrice: Path `portfolio.buyPrice` is required., portfolio.quantity: Path `portfolio.quantity` is required., portfolio.assetSymbol: Path `portfolio.assetSymbol` is required., portfolio.assetType: Path `portfolio.assetType` is required.
+    console.error("Failed to save user during password reset:", err.message);
+    throw err;
+  }
+  
   return resetToken;
 };
 
