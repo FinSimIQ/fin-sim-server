@@ -1,4 +1,5 @@
 const axios = require("axios");
+const fs = require("fs");
 require("dotenv").config();
 
 const API_KEY = process.env.ALPHA_VANTAGE_API_KEY;
@@ -24,9 +25,33 @@ exports.getStockOverview = async (req, res) => {
       return res.status(400).json({ error: "Stock data not found" });
     }
 
-    res.json(response.data);
+    let stocks = [];
+    if (fs.existsSync("stocks.json")) {
+      const fileData = fs.readFileSync("stocks.json", "utf8");
+      stocks = JSON.parse(fileData);
+    }
+
+    stocks.push(response.data);
+    fs.writeFileSync("stocks.json", JSON.stringify(stocks, null, 2), "utf8");
+
+    res.json({ message: "Stock data saved", data: response.data });
   } catch (error) {
     console.error("Error fetching stock data: ", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+if (require.main === module) {
+  const testSymbol = "SCHW";
+
+  const req = { params: { symbol: testSymbol } };
+  const res = {
+    json: (data) => console.log("Response:", JSON.stringify(data, null, 2)),
+    status: function (code) {
+      console.log(`Error Status: ${code}`);
+      return this;
+    },
+  };
+
+  this.getStockOverview(req, res);
+}
