@@ -7,8 +7,14 @@ const BASE_URL = "https://www.alphavantage.co/query";
 // In-memory storage for user portfolios (can store in database in the future)
 const userPortfolios = new Map();
 
+const currStockPrices = {};
+
 // Get current stock price
 async function getCurrentStockPrice(symbol) {
+  if (currStockPrices[symbol]) {
+    return currStockPrices[symbol];
+  }
+
   try {
     const response = await axios.get(BASE_URL, {
       params: {
@@ -18,10 +24,18 @@ async function getCurrentStockPrice(symbol) {
       },
     });
 
-    if (!response.data || !response.data["Global Quote"] || !response.data["Global Quote"]["05. price"]) {
+    console.log(response);
+
+    if (
+      !response.data ||
+      !response.data["Global Quote"] ||
+      !response.data["Global Quote"]["05. price"]
+    ) {
       throw new Error("Unable to fetch current stock price");
     }
-
+    currStockPrices[symbol] = parseFloat(
+      response.data["Global Quote"]["05. price"]
+    );
     return parseFloat(response.data["Global Quote"]["05. price"]);
   } catch (error) {
     throw new Error(`Error fetching stock price: ${error.message}`);
@@ -32,9 +46,9 @@ async function getCurrentStockPrice(symbol) {
 function getUserPortfolio(userId) {
   if (!userPortfolios.has(userId)) {
     userPortfolios.set(userId, {
-      stocks: {},  // Format: { symbol: { quantity: number, avgBuyPrice: number } }
-      liquidCash: 10000,  // Starting with $10,000 for testing
-      lastUpdated: new Date()
+      stocks: {},
+      liquidCash: 10000,
+      lastUpdated: new Date(),
     });
   }
   return userPortfolios.get(userId);
@@ -42,11 +56,13 @@ function getUserPortfolio(userId) {
 
 // Buy stock
 exports.buyStock = async (req, res) => {
-  const { userId, symbol, quantity, price } = req.body;
+  const { userId, symbol, quantity } = req.body;
 
-  if (!userId || !symbol || !quantity || !price) {
+  if (!userId || !symbol || !quantity) {
     return res.status(400).json({ error: "Missing required parameters" });
   }
+
+  const price = await getCurrentStockPrice(symbol);
 
   try {
     const portfolio = getUserPortfolio(userId);
@@ -61,12 +77,14 @@ exports.buyStock = async (req, res) => {
     if (!portfolio.stocks[symbol]) {
       portfolio.stocks[symbol] = {
         quantity: quantity,
-        avgBuyPrice: price
+        avgBuyPrice: price,
       };
     } else {
       const currentPosition = portfolio.stocks[symbol];
       const newTotalQuantity = currentPosition.quantity + quantity;
-      const newTotalCost = (currentPosition.quantity * currentPosition.avgBuyPrice) + (quantity * price);
+      const newTotalCost =
+        currentPosition.quantity * currentPosition.avgBuyPrice +
+        quantity * price;
       currentPosition.avgBuyPrice = newTotalCost / newTotalQuantity;
       currentPosition.quantity = newTotalQuantity;
     }
@@ -77,7 +95,7 @@ exports.buyStock = async (req, res) => {
 
     res.json({
       message: "Stock purchased successfully",
-      portfolio: portfolio
+      portfolio: portfolio,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -94,9 +112,12 @@ exports.sellStock = async (req, res) => {
 
   try {
     const portfolio = getUserPortfolio(userId);
-    
+
     // Check if user has enough stocks to sell
-    if (!portfolio.stocks[symbol] || portfolio.stocks[symbol].quantity < quantity) {
+    if (
+      !portfolio.stocks[symbol] ||
+      portfolio.stocks[symbol].quantity < quantity
+    ) {
       return res.status(400).json({ error: "Insufficient stocks to sell" });
     }
 
@@ -116,7 +137,7 @@ exports.sellStock = async (req, res) => {
 
     res.json({
       message: "Stock sold successfully",
-      portfolio: portfolio
+      portfolio: portfolio,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -141,9 +162,9 @@ exports.getPortfolioValue = async (req, res) => {
       const currentPrice = await getCurrentStockPrice(symbol);
       const marketValue = position.quantity * currentPrice;
       const costBasis = position.quantity * position.avgBuyPrice;
-      
+
       totalValue += marketValue;
-      unrealizedGains += (marketValue - costBasis);
+      unrealizedGains += marketValue - costBasis;
     }
 
     res.json({
@@ -151,7 +172,7 @@ exports.getPortfolioValue = async (req, res) => {
       totalPortfolioValue: totalValue,
       unrealizedGains: unrealizedGains,
       lastUpdated: new Date(),
-      holdings: portfolio.stocks
+      holdings: portfolio.stocks,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -26,7 +26,7 @@ const leaderboardRoutes = require("./routes/Leaderboard.routes");
 const quizRoutes = require("./routes/Quiz.routes");
 const contentGenerationRoutes = require("./routes/GenerateContent.router");
 const stockRoutes = require("./routes/stockData.routes");
-const portfolioRoutes = require("./routes/portfolio.routes");
+const portfolioRoutes = require("./routes/Portfolio.routes");
 const stockPredictionRoutes = require("./routes/StockPrediction.routes");
 
 // adding the controller
